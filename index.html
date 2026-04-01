@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kawaii Desktop UI</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* =========================================================
+           1. 全域與背景設定 (Global & Background)
+           ========================================================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            /* 粉色到藍色的純淨夢幻漸層 */
+            background: linear-gradient(135deg, #ffcce6 0%, #cce0ff 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end; /* 將視窗推向下方，保留上方天空 */
+            align-items: center;
+            font-family: 'Inter', sans-serif;
+            padding-bottom: 8vh;
+            
+            /* 自訂粉色描邊可愛游標 (SVG Base64) */
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 32 32'><path d='M6 6 L22 14 L15 16 L18 24 L14 25 L11 17 L6 20 Z' fill='%23ffffff' stroke='%23ff69b4' stroke-width='2' stroke-linejoin='round'/></svg>"), auto;
+        }
+
+        /* =========================================================
+           2. 上空魔法字母區 (Sky Container)
+           ========================================================= */
+        #sky-container {
+            position: absolute;
+            top: 5%;
+            left: 0;
+            width: 100vw;
+            height: 55vh;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            align-content: center;
+            gap: 10px;
+            pointer-events: none; /* 讓滑鼠點擊穿透 */
+            z-index: 9999;
+        }
+
+        /* 處理空白鍵的空間 */
+        .sky-space {
+            width: clamp(40px, 6vw, 80px);
+            display: inline-block;
+        }
+
+        /* 單個巨型字母包裹器 */
+        .sky-letter-wrapper {
+            position: relative;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            /* 大尺寸、笨拙的手繪字體 */
+            font-family: 'Caveat', cursive;
+            font-size: clamp(100pt, 15vw, 200pt);
+            font-weight: 700;
+            color: #ff3399; /* 主體粉紅 */
+            
+            /* 模擬墨水暈染邊緣與輕微 soft glow */
+            text-shadow: 
+                0 0 15px rgba(255, 105, 180, 0.4),
+                2px 2px 0px rgba(255, 20, 147, 0.2),
+                -1px -1px 0px rgba(255, 255, 255, 0.8);
+            filter: drop-shadow(1px 1px 2px rgba(255, 105, 180, 0.3));
+            
+            /* 彈跳出現的進場動畫 */
+            animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* 內層負責持續的漂浮與顫動 (wobble) */
+        .sky-letter-inner {
+            display: inline-block;
+            animation: inkWobble 3s infinite alternate ease-in-out;
+            transform-origin: bottom center;
+        }
+
+        /* 隨機分布的童話小裝飾 (星星/墨點) */
+        .magic-deco {
+            position: absolute;
+            font-family: sans-serif;
+            color: #ffb6c1;
+            text-shadow: 0 0 6px #ffb6c1;
+            animation: starTwinkle 1.5s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+
+        /* =========================================================
+           3. 主視窗 (Retro Desktop Window)
+           ========================================================= */
+        .window {
+            width: 85vw;
+            max-width: 600px;
+            height: 30vh;
+            min-height: 200px;
+            background: #fafafa; /* 極淡米灰色 */
+            border: 2px solid #87cefa; /* 水藍色細描邊 */
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(135, 206, 250, 0.25), inset 0 0 0 1px #ffffff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            z-index: 10;
+        }
+
+        /* 標題列 */
+        .title-bar {
+            height: 34px;
+            background: #ffffff;
+            border-bottom: 2px solid #87cefa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 14px;
+        }
+
+        .title-text {
+            color: #5c93c4;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Loading的點點動畫 */
+        .loading-dots::after {
+            content: '...';
+            display: inline-block;
+            width: 15px;
+            text-align: left;
+            animation: dotBlink 1.5s infinite steps(4, end);
+        }
+
+        /* 視窗控制按鈕 */
+        .controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn {
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #87cefa;
+            border-radius: 3px;
+            background: #ffffff;
+            color: #87cefa;
+            font-size: 9px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #ffb6c1;
+            border-color: #ffb6c1;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* =========================================================
+           4. 內容區與像素愛心
+           ========================================================= */
+        .content {
+            flex: 1;
+            position: relative;
+            background: #fcfcfc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 愛心容器 */
+        .pixel-heart-wrapper {
+            cursor: pointer;
+            transition: opacity 0.4s ease, transform 0.2s;
+            animation: heartPulse 2s infinite ease-in-out;
+            z-index: 20;
+        }
+
+        .pixel-heart-wrapper:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 0 10px rgba(255, 105, 180, 0.5));
+        }
+
+        /* =========================================================
+           5. 視窗內部輸入 UI (Input Mode)
+           ========================================================= */
+        .input-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .input-view.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .input-box {
+            display: flex;
+            align-items: center;
+            background: #fff0f5;
+            border: 2px dashed #ffb6c1;
+            border-radius: 8px;
+            padding: 12px 18px;
+            width: 90%;
+            font-size: 20px;
+            color: #ff69b4;
+            font-weight: 600;
+            cursor: text;
+            box-shadow: 0 2px 10px rgba(255, 182, 193, 0.2);
+        }
+
+        .prompt-symbol {
+            color: #87cefa;
+            margin-right: 10px;
+        }
+
+        /* 視窗內顯示的小字體 */
+        #typed-ui-text {
+            min-height: 24px;
+            word-break: break-all;
+        }
+
+        .cursor-blink {
+            display: inline-block;
+            width: 10px;
+            height: 20px;
+            background-color: #ff69b4;
+            margin-left: 2px;
+            animation: cursorBlink 1s infinite;
+        }
+
+        /* 真實的隱藏輸入框，負責喚起手機鍵盤與接收按鍵 */
+        #hidden-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* =========================================================
+           6. 動畫 Keyframes
+           ========================================================= */
+        @keyframes heartPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+
+        @keyframes dotBlink {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+        }
+
+        @keyframes cursorBlink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        /* 字母彈跳出現 */
+        @keyframes popUp {
+            0% { opacity: 0; transform: scale(0.2) translateY(80px) rotate(-15deg); }
+            60% { transform: scale(1.15) translateY(-15px) rotate(5deg); }
+            100% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
+        }
+
+        /* 魔法塗鴉字的持續晃動 (笨拙感) */
+        @keyframes inkWobble {
+            0% { transform: skewX(-2deg) translateY(-2px) rotate(-2deg); }
+            100% { transform: skewX(2deg) translateY(2px) rotate(2deg); }
+        }
+
+        /* 星星裝飾閃爍 */
+        @keyframes starTwinkle {
+            0% { opacity: 0.2; transform: scale(0.6); }
+            100% { opacity: 0.9; transform: scale(1.2); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="sky-container"></div>
+
+    <div class="window">
+        <div class="title-bar">
+            <div class="title-text" id="window-title">LOADING<span class="loading-dots"></span></div>
+            <div class="controls">
+                <div class="btn minimize">_</div>
+                <div class="btn maximize">□</div>
+                <div class="btn close">×</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="pixel-heart-wrapper" id="heart-btn">
+                <svg width="100" height="100" viewBox="0 0 11 11" style="shape-rendering: crispEdges;">
+                    <defs>
+                        <linearGradient id="pinkGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#ffb6c1"/>
+                            <stop offset="100%" stop-color="#ff1493"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M2 0h2v1h3v-1h2v2h1v3h-1v2h-1v1h-1v1h-1v1h-1v-1h-1v-1h-1v-1h-1v-2h-1v-3h1z" fill="url(#pinkGrad)"/>
+                </svg>
+            </div>
+
+            <div class="input-view" id="input-view">
+                <div class="input-box" id="input-trigger">
+                    <span class="prompt-symbol">♡~</span>
+                    <span id="typed-ui-text"></span>
+                    <span class="cursor-blink"></span>
+                    <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" spellcheck="false">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const heartBtn = document.getElementById('heart-btn');
+            const inputView = document.getElementById('input-view');
+            const hiddenInput = document.getElementById('hidden-input');
+            const typedUiText = document.getElementById('typed-ui-text');
+            const windowTitle = document.getElementById('window-title');
+            const inputTrigger = document.getElementById('input-trigger');
+            const skyContainer = document.getElementById('sky-container');
+
+            let isInputMode = false;
+            let currentTextStr = "";
+
+            // 1. 點擊愛心，喚醒輸入模式
+            heartBtn.addEventListener('click', () => {
+                isInputMode = true;
+                
+                // 隱藏愛心
+                heartBtn.style.opacity = '0';
+                heartBtn.style.pointerEvents = 'none';
+                
+                setTimeout(() => {
+                    heartBtn.style.display = 'none';
+                    // 顯示輸入區
+                    inputView.classList.add('active');
+                    // 更改標題
+                    windowTitle.innerHTML = 'INPUT_MODE.exe';
+                    // 聚焦隱藏輸入框 (喚起鍵盤)
+                    hiddenInput.focus();
+                }, 300);
+            });
+
+            // 點擊視窗輸入區域時，確保鍵盤不會收起
+            inputTrigger.addEventListener('click', () => {
+                if(isInputMode) hiddenInput.focus();
+            });
+
+            // 2. 監聽文字輸入
+            hiddenInput.addEventListener('input', (e) => {
+                const newTextStr = hiddenInput.value;
+                
+                // 更新視窗內的小字體 UI
+                typedUiText.textContent = newTextStr;
+
+                // 判斷是新增字母還是刪除 (Backspace)
+                if (newTextStr.length > currentTextStr.length) {
+                    // 新增了字母，將差異的部分丟到天空
+                    const addedChars = newTextStr.slice(currentTextStr.length);
+                    for (let char of addedChars) {
+                        createSkyLetter(char);
+                    }
+                } else if (newTextStr.length < currentTextStr.length) {
+                    // 刪除了字母，移除天空中的最後一個元素
+                    const diffCount = currentTextStr.length - newTextStr.length;
+                    for (let i = 0; i < diffCount; i++) {
+                        if (skyContainer.lastElementChild) {
+                            skyContainer.lastElementChild.remove();
+                        }
+                    }
+                }
+                
+                currentTextStr = newTextStr;
+            });
+
+            // 3. 建立空中塗鴉大字的函數
+            function createSkyLetter(char) {
+                // 如果是空白鍵，新增一個佔位元素
+                if (char === ' ') {
+                    const spaceEl = document.createElement('div');
+                    spaceEl.className = 'sky-space';
+                    skyContainer.appendChild(spaceEl);
+                    return;
+                }
+
+                // 最外層包裹器 (負責進場排版與動畫)
+                const wrapper = document.createElement('div');
+                wrapper.className = 'sky-letter-wrapper';
+                
+                // 賦予輕微隨機的初始傾斜與高低差，製造手寫的錯落感
+                const randomRot = (Math.random() - 0.5) * 16; // -8度 到 8度
+                const randomY = (Math.random() - 0.5) * 20;   // -10px 到 10px
+                wrapper.style.transform = `rotate(${randomRot}deg) translateY(${randomY}px)`;
+
+                // 內層字母 (負責持續的 wobble 顫動動畫)
+                const inner = document.createElement('div');
+                inner.className = 'sky-letter-inner';
+                // 為了讓動畫不同步，設定隨機的 animation-delay
+                inner.style.animationDelay = `${Math.random() * -3}s`;
+                inner.textContent = char;
+
+                // 加入裝飾元素：隨機小星星 (✦/✧) 或 墨點 (●/·)
+                const deco1 = document.createElement('span');
+                deco1.className = 'magic-deco';
+                deco1.textContent = Math.random() > 0.5 ? '✦' : '✧';
+                deco1.style.top = `${-10 + Math.random() * 20}%`;
+                deco1.style.left = `${-10 + Math.random() * 20}%`;
+                deco1.style.fontSize = `${15 + Math.random() * 10}pt`;
+                deco1.style.animationDelay = `${Math.random() * -2}s`;
+
+                wrapper.appendChild(inner);
+                wrapper.appendChild(deco1);
+
+                // 30% 機率再多一個小裝飾
+                if (Math.random() > 0.7) {
+                    const deco2 = document.createElement('span');
+                    deco2.className = 'magic-deco';
+                    deco2.textContent = Math.random() > 0.5 ? '●' : '·';
+                    deco2.style.bottom = `${-5 + Math.random() * 15}%`;
+                    deco2.style.right = `${-5 + Math.random() * 15}%`;
+                    deco2.style.fontSize = `${8 + Math.random() * 8}pt`;
+                    wrapper.appendChild(deco2);
+                }
+
+                skyContainer.appendChild(wrapper);
+            }
+        });
+    </script>
+</body>
+</html>
